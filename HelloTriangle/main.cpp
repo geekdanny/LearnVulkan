@@ -51,7 +51,7 @@ private:
     }
 
     /*
-     * to create an instance we'll first have to fill in a struct
+     * To create an instance we'll first have to fill in a struct
      * with some information about our application. This data is
      * technically optional, but it may provide some useful information
      * to the driver in order to optimize our specific application
