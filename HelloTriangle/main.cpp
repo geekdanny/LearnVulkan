@@ -78,6 +78,8 @@ private:
         createInstance();
         //Step 2. Setup Debug Messenger
         setupDebugMessenger();
+        //Step 3. Pick A Physical Device
+        pickPhysicalDevice();
     }
 
     void mainloop() {
@@ -162,8 +164,6 @@ private:
         } else {
             std::cout << "The vkInstance has been successfully created!" << std::endl;
         }
-
-        pickPhysicalDevice();
     }
 
     void pickPhysicalDevice() {
