@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <vector>
 #include <cstring>
+#include <optional>
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
@@ -50,6 +51,15 @@ public:
 private:
     GLFWwindow *window;
     VkInstance instance;
+    VkPhysicalDevice  physicalDevice = VK_NULL_HANDLE;
+    struct QueueFamilyIndices {
+        std::optional<uint32_t> graphicsFamily;
+
+        bool isComplete() {
+            return graphicsFamily.has_value();
+        }
+    };
+
     //The callback debugMessenger
     VkDebugUtilsMessengerEXT debugMessenger;
 
@@ -153,9 +163,37 @@ private:
             std::cout << "The vkInstance has been successfully created!" << std::endl;
         }
 
-
+        pickPhysicalDevice();
     }
 
+    void pickPhysicalDevice() {
+        //List all the available physical cards
+        uint32_t deviceCount = 0;
+        vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
+        if (deviceCount == 0) {
+            throw std::runtime_error("failed to find GPUS with Vulkan Support!");
+        }
+        std::vector<VkPhysicalDevice> devices(deviceCount);
+        vkEnumeratePhysicalDevices(instance, & deviceCount, devices.data());
+
+        for (const auto &device: devices) {
+            if (isDeviceStuitable(device)) {
+                physicalDevice = device;
+                break;
+            }
+        }
+        if (physicalDevice == VK_NULL_HANDLE) {
+            throw std::runtime_error("failed to find a suitable GPU!");
+        }
+    }
+
+    bool isDeviceStuitable(VkPhysicalDevice device) {
+        // We check the queue family to ensure that the deivce can process the commands we want to use.
+        QueueFamilyIndices indices = findQueueFamliies(device);
+        return indices.isComplete();
+    }
+
+    //Helper Functions
     void displaySupportedExtensions() {
         //checking for extensions support
         uint32_t extensionCount = 0;
@@ -212,6 +250,30 @@ private:
             }
         }
         return true;
+    }
+
+    QueueFamilyIndices findQueueFamliies(VkPhysicalDevice device) {
+        //find the GPU's queue famlies
+        QueueFamilyIndices indices;
+
+        uint32_t queueFamilyCount = 0;
+
+        vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+        std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+        vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+
+        int i= 0;
+        for (const auto &queueFamily : queueFamilies) {
+            //sVK_QUEUE_GRAPHICS_BIT specifies that queues in this queue family support graphics operations.
+            if(queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+                indices.graphicsFamily = i;
+            }
+            if (indices.isComplete()) {
+                break;
+            }
+            i++;
+        }
+        return indices;
     }
 
     std::vector<const char *> getRequiredExtensions() {
