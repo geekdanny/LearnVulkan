@@ -16,6 +16,10 @@ const std::vector<const char *> validationLayers = {
         "VK_LAYER_KHRONOS_validation"
 };
 
+const std::vector<const char*> deviceExtensions = {
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME
+};
+
 #ifdef NDEBUG
 const bool enableValidationLayers = false;
 #else
@@ -60,6 +64,12 @@ private:
     VkQueue graphicsQueue;
     VkQueue presentQueue;
     VkSurfaceKHR surface;
+    
+    struct SwapChainSupportDetails {
+        VkSurfaceCapabilitiesKHR capabilities;
+        std::vector<VkSurfaceFormatKHR> formats;
+        std::vector<VkPresentModeKHR> presentModes;
+    };
 
     struct QueueFamilyIndices {
         std::optional<uint32_t> graphicsFamily;
@@ -221,12 +231,14 @@ private:
         createInfo.pQueueCreateInfos = queueCreateInfos.data();
         createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
         createInfo.pEnabledFeatures = &deviceFeatures;
+        // enable the device extensions
+        createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
+        createInfo.ppEnabledExtensionNames = deviceExtensions.data();
 
         //Previous implementations of Vulkan made a distinction between instance and device specific validation layers,
         // but this is no longer the case. That means that the enabledLayerCount and ppEnabledLayerNames fields of
         // VkDeviceCreateInfo are ignored by up-to-date implementations. However, it is still a good idea to set
         // them anyway to be compatible with older implementations:
-        createInfo.enabledExtensionCount = 0;
         if (enableValidationLayers) {
             createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
             createInfo.ppEnabledLayerNames = validationLayers.data();
@@ -269,7 +281,8 @@ private:
     bool isDeviceSuitable(VkPhysicalDevice device) {
         // We check the queue family to ensure that the deivce can process the commands we want to use.
         QueueFamilyIndices indices = findQueueFamilies(device);
-        return indices.isComplete();
+        bool extensionsSupported = checkDeviceExtensionSupport(device);
+        return indices.isComplete() & extensionsSupported;
     }
 
     //Helper Functions
@@ -381,6 +394,25 @@ private:
 
         return extensions;
     }
+    bool checkDeviceExtensionSupport(VkPhysicalDevice device) {
+        uint32_t extensionCount;
+        vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
+        std::vector <VkExtensionProperties> availableExtensions(extensionCount);
+        vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.data());
+        std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
+        //enumerate each available extension
+        for (const auto& extension : availableExtensions) {
+            //compare the available one the ones in the required set.
+            //if the one from the available set can be also found from the required set
+            //it means the required one is supported
+            requiredExtensions.erase(extension.extensionName);
+        }
+        //In the end, if the required is empty, it means all the required ones
+        //were also found from the available sets. So, empty means the all the
+        //required one are supported
+        return requiredExtensions.empty();
+    }
+
 
     static VKAPI_ATTR VkBool32 VKAPI_CALL
     debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType,
